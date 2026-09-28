@@ -6,7 +6,7 @@ import { currentObjective } from '../../core/quests/unlocks';
 import { bus } from '../../game/bus';
 import { Portrait } from '../components/Portrait';
 
-export function HUD({ onMenu, onCodex, onSchema, touch }: { onMenu: () => void; onCodex: () => void; onSchema: () => void; touch: boolean }) {
+export function HUD({ onMenu, onCodex, onSchema, onProfile, touch }: { onMenu: () => void; onCodex: () => void; onSchema: () => void; onProfile: () => void; touch: boolean }) {
   const save = useProgress((s) => s.save);
   const [prompt, setPrompt] = useState<string | null>(null);
   const [hour, setHour] = useState(9);
@@ -46,6 +46,9 @@ export function HUD({ onMenu, onCodex, onSchema, touch }: { onMenu: () => void; 
           {icon} {h12}:00 {ampm}
         </div>
         <div className="hud-buttons">
+          <button className="btn small yellow icon" onClick={onProfile} aria-label="Career, quests and trophies" title="Career, quests and trophies">
+            🏆
+          </button>
           <button className="btn small teal icon" onClick={onSchema} aria-label="Schema explorer" title="Schema explorer">
             🗂️
           </button>

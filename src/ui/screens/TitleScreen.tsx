@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { music } from '../../core/audio/music';
 import { sfx, unlockAudio } from '../../core/audio/sfx';
 import { levelProgress } from '../../core/progress/levels';
 import { SLOT_COUNT, useProgress } from '../../core/progress/store';
@@ -28,6 +29,7 @@ export function TitleScreen({ onNew, onContinue }: { onNew: (slot: number) => vo
   const start = () => {
     unlockAudio();
     sfx('select');
+    music.play('title');
     setStarted(true);
   };
 

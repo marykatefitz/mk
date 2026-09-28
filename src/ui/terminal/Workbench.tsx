@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sfx } from '../../core/audio/sfx';
 import { NPCS } from '../../core/characters';
 import { CODEX_BY_ID } from '../../core/codex';
+import { trackActivity } from '../../core/progress/meta';
 import { useProgress, type RewardEvent } from '../../core/progress/store';
 import { predictOptions, shuffleOptions, type PredictOption } from '../../departments/sql/predict';
 import {
@@ -170,6 +171,7 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
     useProgress.getState().update((s) => {
       s.stats.xrays++;
     });
+    trackActivity('xray');
   };
 
   const revealHint = () => {

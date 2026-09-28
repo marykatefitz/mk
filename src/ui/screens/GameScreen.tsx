@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { music } from '../../core/audio/music';
 import { sfx } from '../../core/audio/sfx';
 import { dialogueFor, type DialogueAction, type DialogueScript } from '../../core/dialogue/scripts';
 import { useProgress } from '../../core/progress/store';
@@ -15,6 +16,8 @@ import { TouchControls, useIsTouch } from '../game/TouchControls';
 import '../game/game.css';
 import { CodexOverlay, LessonOverlay, MenuOverlay, SignOverlay } from '../overlays/Overlays';
 import { SchemaExplorer } from '../overlays/SchemaExplorer';
+import { ProfileOverlay } from '../overlays/ProfileOverlay';
+import { ensureDaily } from '../../core/progress/meta';
 import { TerminalOverlay } from '../terminal/TerminalOverlay';
 import { BossBattle } from '../boss/BossBattle';
 import { ArcadeOverlay } from '../../minigames/ArcadeOverlay';
@@ -28,7 +31,8 @@ type Overlay =
   | { kind: 'schema' }
   | { kind: 'sign'; title: string; text: string }
   | { kind: 'boss'; world: number; which: 'mini' | 'boss' }
-  | { kind: 'arcade' };
+  | { kind: 'arcade' }
+  | { kind: 'profile' };
 
 const needsDb = (o: Overlay | null) => o?.kind === 'terminal' || o?.kind === 'schema' || o?.kind === 'boss' || o?.kind === 'arcade';
 
@@ -75,6 +79,7 @@ export function GameScreen({ onQuit }: { onQuit: () => void }) {
   useEffect(() => {
     return bus.on('scene', ({ building }) => {
       setCurrentBuilding(building);
+      music.play(building ? 'interior' : 'overworld');
       if (building && !engine) {
         const idle = (window as unknown as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 800));
         idle(() => loadDb());
@@ -84,6 +89,7 @@ export function GameScreen({ onQuit }: { onQuit: () => void }) {
 
   // New game: Rhonda greets you.
   useEffect(() => {
+    ensureDaily();
     const save = useProgress.getState().save;
     if (save && !save.flags.introDone) {
       const t = setTimeout(() => setOverlay({ kind: 'dialogue', script: dialogueFor('rhonda', save, null) }), 900);
@@ -215,12 +221,14 @@ export function GameScreen({ onQuit }: { onQuit: () => void }) {
         onMenu={() => setOverlay({ kind: 'menu' })}
         onCodex={() => setOverlay({ kind: 'codex' })}
         onSchema={() => setOverlay({ kind: 'schema' })}
+        onProfile={() => setOverlay({ kind: 'profile' })}
       />
       {touch && !overlay && <TouchControls />}
       {overlay?.kind === 'dialogue' && <DialogueBox script={overlay.script} onAction={onDialogueAction} />}
       {overlay?.kind === 'sign' && <SignOverlay title={overlay.title} text={overlay.text} onClose={close} />}
       {overlay?.kind === 'lesson' && <LessonOverlay worldId={overlay.world} onClose={close} />}
       {overlay?.kind === 'codex' && <CodexOverlay onClose={close} />}
+      {overlay?.kind === 'profile' && <ProfileOverlay onClose={close} />}
       {overlay?.kind === 'menu' && (
         <MenuOverlay
           onClose={close}

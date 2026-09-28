@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { sfx } from '../../core/audio/sfx';
 import { CODEX_BY_ID } from '../../core/codex';
 import { titleFor } from '../../core/progress/levels';
+import { checkAchievements, onAchievement } from '../../core/progress/meta';
 import { useProgress, type RewardEvent } from '../../core/progress/store';
 import { prefersReducedMotion } from '../../core/settings';
 
@@ -11,6 +12,29 @@ export function Juice() {
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const [levelUp, setLevelUp] = useState<RewardEvent | null>(null);
   const [confetti, setConfetti] = useState(0);
+
+  useEffect(
+    () =>
+      onAchievement((a) => {
+        const id = Date.now() + Math.random();
+        setToasts((t) => [...t, { id, text: `🎖️ Achievement: ${a.icon} ${a.name}` }]);
+        sfx('unlock');
+        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3800);
+      }),
+    [],
+  );
+  useEffect(() => {
+    // re-check achievements whenever the save changes (cheap)
+    let pending = false;
+    return useProgress.subscribe(() => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => {
+        pending = false;
+        checkAchievements();
+      }, 300);
+    });
+  }, []);
 
   useEffect(() => {
     if (!reward) return;

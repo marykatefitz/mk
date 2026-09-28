@@ -1,4 +1,4 @@
-import type { Challenge, World } from './types';
+import type { BossDef, Challenge, World } from './types';
 import { W1_CHALLENGES, WORLD_1 } from './worlds/w1-lot';
 
 export const WORLDS: World[] = [WORLD_1];
@@ -11,3 +11,6 @@ export function worldOf(challengeId: string): World | undefined {
   const c = CHALLENGE_BY_ID[challengeId];
   return c && WORLDS.find((w) => w.id === c.world);
 }
+
+/** The Monthly Ops Review (added with worlds 2–7). */
+export const FINAL_BOSS: BossDef | null = null;

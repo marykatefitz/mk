@@ -1,4 +1,6 @@
 import type { QueryResult, SqlEngine } from '../../engines/types';
+import { isRvShowWeekend, RV_SHOW_COIN_MULTIPLIER } from '../../core/events';
+import { trackActivity } from '../../core/progress/meta';
 import { useProgress } from '../../core/progress/store';
 import { compareResults, guardQuery, type CheckResult } from './checker';
 import { XP_BY_TYPE, type Challenge, type WriteChallenge } from './types';
@@ -84,7 +86,7 @@ export function rewardFor(c: Challenge, attempts: number, hints: number) {
   const base = c.xp ?? XP_BY_TYPE[c.type];
   const firstTry = attempts <= 1;
   const xp = Math.round(base * (firstTry ? 1.5 : 1) * Math.max(0.4, 1 - 0.2 * hints));
-  const coins = 10 + (firstTry ? 10 : 0) + (hints === 0 ? 5 : 0);
+  const coins = (10 + (firstTry ? 10 : 0) + (hints === 0 ? 5 : 0)) * (isRvShowWeekend(new Date()) ? RV_SHOW_COIN_MULTIPLIER : 1);
   return { xp, coins, firstTry, golden: firstTry && hints === 0 };
 }
 
@@ -105,7 +107,13 @@ export function completeChallenge(c: Challenge, sql?: string) {
   store.update((s) => {
     s.solved[c.id] = { at: Date.now(), attempts, hints, firstTry: r.firstTry, golden: r.golden, sql };
   });
-  return store.grant(c.title, r.xp, r.coins, { golden: r.golden, codex: c.codex });
+  const ev = store.grant(c.title, r.xp, r.coins, { golden: r.golden, codex: c.codex });
+  if (!c.bossOnly) {
+    trackActivity('solve');
+    if (c.type === 'read') trackActivity('read');
+    if (hints === 0) trackActivity('hintless');
+  }
+  return ev;
 }
 
 export function recordAttempt(c: Challenge) {

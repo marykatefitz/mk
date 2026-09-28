@@ -1,0 +1,50 @@
+import { chromium, devices } from '@playwright/test';
+const tag = process.argv[2] ?? 'd';
+const browser = await chromium.launch();
+const ctx = await browser.newContext(tag === 'p' ? { ...devices['iPhone 13'] } : { viewport: { width: 1366, height: 820 } });
+const page = await ctx.newPage();
+const errs = [];
+page.on('pageerror', (e) => errs.push(e.message + ' :: ' + e.stack?.split('\n').slice(0, 4).join(' | ')));
+const shot = (n) => page.screenshot({ path: `/tmp/claude-0/shots/${tag}-b${n}.png` });
+const tp = (x, y, f = 'up') => page.evaluate(([x, y, f]) => window.__dq.teleport(x, y, f), [x, y, f]);
+await page.goto('http://localhost:5173/');
+await page.evaluate(() => localStorage.clear());
+await page.goto('http://localhost:5173/?slot=0&name=Mary&unlockall&skipintro');
+await page.waitForFunction(() => window.__dq?.player(), null, { timeout: 60000 });
+await page.waitForTimeout(800);
+await tp(49.5 * 16, 24 * 16 + 14);
+await page.waitForTimeout(200);
+await page.keyboard.press('e');
+await page.waitForFunction(() => window.__dq.scene() === 'interior', null, { timeout: 10000 });
+await page.waitForTimeout(600);
+await tp(64, 3 * 16 + 16);
+await page.waitForTimeout(200);
+await page.keyboard.press('e');
+await page.waitForSelector('.boss-root', { timeout: 60000 });
+await page.waitForTimeout(1500);
+await shot('1-intro');
+await page.click('text=⚔️ Fight!');
+await page.waitForTimeout(600);
+const answers = ["SELECT stock_no FROM units WHERE vin LIKE '%139065'", "SELECT stock_no, status FROM units WHERE rv_class = 'Class B' AND location_id = 1", 'SELECT DISTINCT status FROM units'];
+const type = async (sql) => {
+  if (tag === 'p') await page.click('.wb-mobile-tabs >> text=Query');
+  const ed = page.locator('.boss-bench .cm-content >> visible=true').first();
+  await ed.click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type(sql);
+  await page.click('text=✓ Check answer');
+};
+// one wrong answer first
+await type('SELECT stock_no FROM units');
+await page.waitForTimeout(700);
+await shot('2-wrong');
+for (let i = 0; i < answers.length; i++) {
+  await type(answers[i]);
+  await page.waitForTimeout(i === 1 ? 300 : 1400);
+  if (i === 1) await shot('3-crit');
+  await page.waitForTimeout(1200);
+}
+await page.waitForTimeout(1500);
+await shot('4-victory');
+console.log(errs.join('\n') || 'no errors');
+await browser.close();
