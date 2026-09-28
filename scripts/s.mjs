@@ -1,0 +1,10 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1366, height: 820 } });
+await page.goto('http://localhost:5173');
+await page.waitForSelector('text=w1-03', { timeout: 90000 });
+await page.click('text=w1-03');
+await page.waitForTimeout(1500);
+await page.screenshot({ path: '/tmp/claude-0/shots/t.png' });
+console.log(await page.evaluate(() => { const e = document.querySelector('.wb-editor'); const r = e.getBoundingClientRect(); const c = document.querySelector('.wb-code').getBoundingClientRect(); return [r.width, r.height, c.width, c.height, getComputedStyle(document.querySelector('.wb')).gridTemplateColumns]; }));
+await browser.close();

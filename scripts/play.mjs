@@ -1,0 +1,33 @@
+import { chromium, devices } from '@playwright/test';
+const browser = await chromium.launch();
+for (const [name, ctxOpts] of [['desktop', { viewport: { width: 1366, height: 820 } }], ['phone', { ...devices['iPhone 13'] }]]) {
+  const ctx = await browser.newContext(ctxOpts);
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  await page.goto('http://localhost:5173');
+  await page.waitForSelector('text=w1-03', { timeout: 90000 });
+  await page.click('text=w1-03');
+  if (name === 'phone') await page.click('text=⌨️ Query');
+  await page.waitForSelector('.cm-content >> visible=true');
+  const ed = page.locator('.cm-content >> visible=true').first();
+  await ed.click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type("SELECT stock_no, model, location_id, msrp FROM units WHERE rv_class = 'Class A' ORDER BY msrp DESC");
+  await page.click('text=✓ Check answer');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `/tmp/claude-0/shots/${name}-wrong.png` });
+  if (name === 'phone') await page.click('text=⌨️ Query');
+  await ed.click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type("SELECT stock_no, model, location_id, msrp FROM units WHERE condition = 'New' AND rv_class = 'Class A' AND status = 'In Stock' ORDER BY msrp DESC");
+  await page.click('text=✓ Check answer');
+  await page.waitForTimeout(800);
+  if (name === 'phone') await page.click('text=📜 Quest');
+  await page.screenshot({ path: `/tmp/claude-0/shots/${name}-right.png` });
+  if (name === 'phone') await page.click('text=⌨️ Query');
+  await page.click('text=🩻 X-Ray');
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: `/tmp/claude-0/shots/${name}-xray.png` });
+  await ctx.close();
+}
+await browser.close();
