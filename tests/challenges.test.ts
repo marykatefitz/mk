@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CODEX_BY_ID } from '../src/core/codex';
 import { NPCS } from '../src/core/characters';
 import { compareResults } from '../src/departments/sql/checker';
-import { CHALLENGES, CHALLENGE_BY_ID, WORLDS } from '../src/departments/sql';
+import { CHALLENGES, CHALLENGE_BY_ID, FINAL_BOSS, WORLDS } from '../src/departments/sql';
 import { predictOptions } from '../src/departments/sql/predict';
 import { computeFacts, fillCard } from '../src/departments/sql/present';
 import { buildSteps } from '../src/departments/sql/xray';
@@ -22,6 +22,17 @@ describe('challenge catalog', () => {
       for (const id of w.challenges) expect(CHALLENGE_BY_ID[id], id).toBeDefined();
       for (const b of [w.miniBoss, w.boss]) for (const p of b.phases) for (const id of p.questions) expect(CHALLENGE_BY_ID[id], id).toBeDefined();
     }
+    for (const p of FINAL_BOSS!.phases) for (const id of p.questions) expect(CHALLENGE_BY_ID[id], id).toBeDefined();
+  });
+
+  it('every codex term can be unlocked', () => {
+    const used = new Set(CHALLENGES.flatMap((c) => c.codex ?? []).concat(['dms', 'crm']));
+    expect(Object.keys(CODEX_BY_ID).filter((id) => !used.has(id))).toEqual([]);
+  });
+
+  it('Phase 1 has at least 60 non-boss challenges across 7 worlds', () => {
+    expect(WORLDS.length).toBe(7);
+    expect(CHALLENGES.filter((c) => !c.bossOnly).length).toBeGreaterThanOrEqual(60);
   });
 
   it('every challenge has 3 hints, a why-note, a real giver and valid codex links', () => {

@@ -1,0 +1,115 @@
+import type { BossDef, Challenge } from '../types';
+
+const AGED = "SELECT location_id, as_of_date() - received_date AS days FROM units WHERE status = 'In Stock' AND received_date IS NOT NULL";
+const BACK = '(SELECT deal_id, SUM(sale_price - cost) AS back_gross FROM fi_products GROUP BY deal_id)';
+const DEDUP = 'SELECT * FROM leads QUALIFY ROW_NUMBER() OVER (PARTITION BY lead_number ORDER BY lead_id) = 1';
+const EXPOSURE_BY_STORE =
+  'SELECT l.location_name, SUM(c.amount_due - c.amount_paid) AS exposure FROM curtailments c JOIN floorplan_loans f ON f.floorplan_id = c.floorplan_id JOIN units u ON u.stock_no = f.stock_no JOIN locations l ON l.location_id = u.location_id WHERE c.paid_date IS NULL AND c.due_date <= as_of_date() + 60 GROUP BY l.location_name';
+
+export const FINAL_CHALLENGES: Challenge[] = [
+  {
+    id: 'fb-1',
+    world: 8,
+    type: 'write',
+    bossOnly: true,
+    title: 'Ops Review 1: Aging',
+    giver: 'rhonda',
+    story: '"First question. Which store has the worst aging? I want the share of in-stock units over 180 days."',
+    question: 'Return location_name and pct_over_180 for the ONE worst store.',
+    concepts: ['CTE', 'COUNT_IF', 'LIMIT'],
+    solution: `WITH aged AS (${AGED}) SELECT l.location_name, 100.0 * COUNT_IF(a.days > 180) / COUNT(*) AS pct_over_180 FROM aged a JOIN locations l ON l.location_id = a.location_id GROUP BY l.location_name ORDER BY pct_over_180 DESC LIMIT 1`,
+    orderMatters: true,
+    hints: ['Compute days in stock per unit (CTE).', 'Percent over 180 per store.', 'ORDER BY … DESC LIMIT 1'],
+    why: 'Aging is the #1 inventory health metric.',
+  },
+  {
+    id: 'fb-2',
+    world: 8,
+    type: 'write',
+    bossOnly: true,
+    title: 'Ops Review 2: Exposure',
+    giver: 'rhonda',
+    story: '"And which store has the most curtailment exposure: unpaid curtailments due in the next 60 days, including anything already past due?"',
+    question: 'Return location_name and exposure (sum of amount_due − amount_paid) for the ONE store with the most.',
+    concepts: ['JOIN', 'SUM', 'LIMIT'],
+    solution: `${EXPOSURE_BY_STORE} ORDER BY exposure DESC LIMIT 1`,
+    orderMatters: true,
+    hints: ['curtailments → floorplan_loans → units → locations', 'paid_date IS NULL AND due_date <= as_of_date() + 60', 'ORDER BY exposure DESC LIMIT 1'],
+    why: 'Different store! Exposure scales with expensive units, while aging % is about slow turn.',
+  },
+  {
+    id: 'fb-3',
+    world: 8,
+    type: 'write',
+    bossOnly: true,
+    title: 'Ops Review 3: PVR',
+    giver: 'rhonda',
+    story: '"The store with the worst aging, Boise (location 4): how does its total PVR compare to the group?"',
+    question: 'Return boise_pvr and group_pvr (total PVR = (front_gross + back-end gross) ÷ funded deals) in one row.',
+    concepts: ['PVR', 'conditional aggregation'],
+    solution: `SELECT SUM(CASE WHEN d.location_id = 4 THEN d.front_gross + COALESCE(b.back_gross, 0) END) / COUNT_IF(d.location_id = 4) AS boise_pvr, SUM(d.front_gross + COALESCE(b.back_gross, 0)) / COUNT(*) AS group_pvr FROM deals d LEFT JOIN ${BACK} b ON b.deal_id = d.deal_id WHERE d.deal_status = 'Funded'`,
+    hints: ['Pre-aggregate products per deal, LEFT JOIN.', 'Conditional SUM for Boise; plain SUM for the group.', 'Divide each by its own deal count.'],
+    why: 'Aged units get discounted, which shows up in gross per unit.',
+  },
+  {
+    id: 'fb-4',
+    world: 8,
+    type: 'write',
+    bossOnly: true,
+    title: 'Ops Review 4: Trust',
+    giver: 'rhonda',
+    story: '"Last month someone told me close rate dropped. Can I trust the lead numbers?"',
+    question: 'Return raw_close_rate and dedup_close_rate (keeping the lowest lead_id per lead_number) in one row.',
+    concepts: ['QUALIFY', 'dedup'],
+    solution: `SELECT (SELECT 100.0 * COUNT_IF(status = 'Sold') / COUNT(*) FROM leads) AS raw_close_rate, (SELECT 100.0 * COUNT_IF(status = 'Sold') / COUNT(*) FROM (${DEDUP}) d) AS dedup_close_rate`,
+    hints: ['Two scalar subqueries.', 'Dedup with QUALIFY ROW_NUMBER() … = 1.', 'Sold ÷ all, times 100.'],
+    why: 'Always check the data before trusting a KPI move.',
+  },
+  {
+    id: 'fb-5',
+    world: 8,
+    type: 'present',
+    bossOnly: true,
+    title: 'Ops Review 5: The Briefing',
+    giver: 'rhonda',
+    story: '"Okay, analyst. Three sentences. What do I need to know?"',
+    question: 'Build the three-sentence briefing: Answer → So-what → Detail.',
+    concepts: ['Stakeholder Mode'],
+    present: {
+      facts: {
+        boise_pct: `WITH aged AS (${AGED}) SELECT 100.0 * COUNT_IF(days > 180) / COUNT(*) FROM aged WHERE location_id = 4`,
+        phx_exposure: `SELECT exposure FROM (${EXPOSURE_BY_STORE}) x WHERE location_name = 'Phoenix'`,
+        boise_pvr: `SELECT SUM(d.front_gross + COALESCE(b.back_gross, 0)) / COUNT(*) FROM deals d LEFT JOIN ${BACK} b ON b.deal_id = d.deal_id WHERE d.deal_status = 'Funded' AND d.location_id = 4`,
+        group_pvr: `SELECT SUM(d.front_gross + COALESCE(b.back_gross, 0)) / COUNT(*) FROM deals d LEFT JOIN ${BACK} b ON b.deal_id = d.deal_id WHERE d.deal_status = 'Funded'`,
+        dedup: `SELECT 100.0 * COUNT_IF(status = 'Sold') / COUNT(*) FROM (${DEDUP}) d`,
+      },
+      cards: [
+        { id: 'a', role: 'answer', text: 'Boise has our worst aging ({boise_pct:%} of in-stock units are 180+ days) and Phoenix carries the most curtailment exposure ({phx_exposure:$} due within 60 days).', note: 'Open with the answer to her actual questions.' },
+        { id: 's', role: 'sowhat', text: "Let's price-to-move Boise's aged units and pause Boise orders, and have Phoenix prioritize units about to curtail.", note: 'The so-what: what to do.' },
+        { id: 'd', role: 'detail', text: "Boise's total PVR is {boise_pvr:$} vs {group_pvr:$} group-wide, and after removing CRM duplicates our close rate is a steady {dedup:%}.", note: 'Supporting detail and data-trust notes go last.' },
+        { id: 'x1', role: 'distractor', text: 'Everything is fine.', note: 'Not true, and not useful.' },
+        { id: 'x2', role: 'distractor', text: 'I built 14 CTEs, 3 window functions and a recursive org chart this month.', note: 'Rhonda wants outcomes, not your SQL inventory.' },
+        { id: 'x3', role: 'distractor', text: 'Phoenix has the worst aging and Boise has the most exposure.', note: 'Swapped! Check your numbers before you present.' },
+      ],
+    },
+    hints: ['Answer her questions first.', 'Then what to do.', 'Then the supporting numbers.'],
+    why: 'This is the job: turn queries into decisions.',
+  },
+];
+
+export const FINAL_BOSS_DEF: BossDef = {
+  id: 'final-boss',
+  name: 'The Monthly Ops Review',
+  sprite: 'board',
+  mini: false,
+  intro: "The GM's conference room. Rhonda, the controller, every department head, and a projector that hums ominously. \"Let's see what our analyst has for us.\"",
+  victory: 'Rhonda closes her notebook. "That\'s the clearest ops review we\'ve had in years." The room applauds. You are officially the dealership\'s data person.',
+  timer: 240,
+  phases: [
+    { name: 'Inventory Health', taunt: '"Which store is sitting on old units?"', questions: ['fb-1'] },
+    { name: 'Cash Risk', taunt: '"Where\'s our floorplan exposure?"', questions: ['fb-2'] },
+    { name: 'Profitability', taunt: '"And what\'s that doing to gross?"', questions: ['fb-3'] },
+    { name: 'Data Trust', taunt: '"Can I believe these lead numbers?"', questions: ['fb-4'] },
+    { name: 'The Briefing', taunt: '"Three sentences. Go."', questions: ['fb-5'] },
+  ],
+};
