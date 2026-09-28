@@ -1,0 +1,18 @@
+export const DEALER_TIPS = [
+  'Floorplan interest starts the day the lender pays the manufacturer, often before the RV even reaches the lot.',
+  'A curtailment is a principal paydown the floorplan lender requires once a unit gets old. Aged units cost cash.',
+  'Front-end gross is the profit on the RV itself. Back-end gross comes from F&I products.',
+  'PVR = gross ÷ units retailed. Always ask: which gross, and are wholesales and unwinds excluded?',
+  'Work order numbers repeat at every store. Join on wo_number AND location_id.',
+  'Tech efficiency = flag hours ÷ actual hours. Over 100% means the tech beats the labor guide.',
+  'Over-allowance is giving a customer more for their trade than it is worth (allowance − ACV). It comes out of front gross.',
+  'SQL runs FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT, not top to bottom.',
+  'A -1 in an ID column is a sentinel: somebody\'s way of saying "unknown". It is not NULL, and it joins to nothing.',
+  'A surrogate key (lead_id) is a meaningless row ID. A business key (lead_number) is what humans use. They can disagree.',
+  'COUNT(*) counts rows. COUNT(column) skips NULLs. That difference hides a lot of bugs.',
+  'If a join makes your totals bigger than they should be, you probably fanned out: one row became many.',
+  'Snowflake has QUALIFY too, and it is the cleanest way to keep "the first row per group".',
+  'Stock numbers are the dealer\'s ID. VINs are the manufacturer\'s. Customers only know the VIN.',
+  'An unwound deal was reversed after signing. Most reports exclude it from units sold.',
+  'Ask clarifying questions early: "down compared to what?" saves an afternoon of wrong answers.',
+];

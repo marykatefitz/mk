@@ -1,0 +1,20 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+await page.goto('http://localhost:5173');
+await page.waitForSelector('text=Schema Explorer', { timeout: 90000 });
+await page.click('text=deals >> nth=0');
+await page.click('text=Preview 10 rows');
+await page.waitForTimeout(800);
+await page.screenshot({ path: '/tmp/claude-0/shots/preview.png' });
+const r = await page.evaluate(async () => {
+  const { getDealerDb } = await import('/src/engines/duckdb/index.ts');
+  const e = await getDealerDb();
+  const out = await e.query("select as_of_date() d, timestamp '2024-01-02 03:04:05' ts, count(*) c, sum(front_gross) s, avg(apr) a, 2.5::decimal(10,2) dc, date '2024-01-02' - date '2023-12-01' dd, interval 3 day iv, [1,2] l from deals");
+  const t0 = performance.now();
+  const big = await e.query('select * from wo_jobs');
+  return { out, bigRows: big.rows.length, ms: performance.now() - t0 };
+});
+console.log(JSON.stringify(r));
+await browser.close();

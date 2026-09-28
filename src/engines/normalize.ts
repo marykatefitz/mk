@@ -22,6 +22,11 @@ export function normalizeCell(v: unknown, type: string): Cell {
     return v;
   }
   if (typeof v === 'string' || typeof v === 'boolean') return v;
+  if (t === 'INTERVAL' && ArrayBuffer.isView(v)) {
+    // Arrow MonthDayNano interval: Int32Array [months, days, nanos(lo), nanos(hi)]
+    const a = Array.from(v as Int32Array);
+    return normalizeCell({ months: a[0], days: a[1], micros: ((a[3] ?? 0) * 2 ** 32 + ((a[2] ?? 0) >>> 0)) / 1000 }, t);
+  }
   if (t === 'INTERVAL' && typeof v === 'object') {
     const iv = v as { months?: number | bigint; days?: number | bigint; micros?: number | bigint };
     const parts: string[] = [];
