@@ -21,12 +21,14 @@ import { SqlEditor, type SqlEditorHandle } from '../components/SqlEditor';
 import { SchemaExplorer } from '../overlays/SchemaExplorer';
 import { UntangleView } from './UntangleView';
 import { XRayView } from './XRayView';
+import { PresentPanel } from './PresentPanel';
 import './terminal.css';
 
 export interface WorkbenchProps {
   engine: SqlEngine;
   challenge: Challenge;
-  mode: 'quest' | 'boss';
+  /** quest: normal terminal · boss: hints cost HP · step: part of a stakeholder quest (no recording) */
+  mode: 'quest' | 'boss' | 'step';
   /** every graded attempt (boss mode uses this for damage) */
   onAttempt?: (ok: boolean) => void;
   /** called once when solved (quest mode also grants rewards) */
@@ -65,7 +67,7 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
   const started = useRef(Date.now());
   const editor = useRef<SqlEditorHandle>(null);
 
-  const hintsRevealed = mode === 'boss' ? bossHints : (save?.hints[c.id] ?? 0);
+  const hintsRevealed = mode !== 'quest' ? bossHints : (save?.hints[c.id] ?? 0);
   const readonlyQuery = c.type === 'read' || c.type === 'predict' ? c.query : null;
 
   // Reset when the challenge changes (boss phases reuse the component).
@@ -177,7 +179,7 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
   const revealHint = () => {
     const tier = hintsRevealed;
     if (tier >= 3) return;
-    if (mode === 'boss') {
+    if (mode === 'boss' || mode === 'step') {
       if (onHint && !onHint(tier)) return;
       setBossHints(tier + 1);
       sfx('blip');
@@ -264,7 +266,7 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
                 </>
               ) : i === hintsRevealed && !solved ? (
                 <button className="btn small yellow" onClick={revealHint} disabled={locked}>
-                  💡 {['Nudge', 'Approach', 'Near-solution'][i]} ({mode === 'boss' ? `−${[5, 10, 15][i]} HP` : `${HINT_COSTS[i]} coins`})
+                  💡 {['Nudge', 'Approach', 'Near-solution'][i]} ({mode === 'boss' ? `−${[5, 10, 15][i]} HP` : mode === 'step' ? 'free' : `${HINT_COSTS[i]} coins`})
                 </button>
               ) : (
                 <span className="tiny muted">🔒 {['Nudge', 'Approach', 'Near-solution'][i]}</span>
@@ -279,6 +281,15 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
       </section>
 
       {/* ------------------------------------------------ code pane */}
+      {c.type === 'present' ? (
+        <section className="wb-code present" aria-label="Presentation">
+          <div className={`wb-output ${shake ? 'shake' : ''}`} style={{ gridRow: '1 / -1' }}>
+            <div className="wb-output-body">
+              <PresentPanel engine={engine} step={c.present} seed={c.id} solved={solved} locked={locked} onAnswer={(ok) => { graded(ok); if (ok) markSolved(); }} />
+            </div>
+          </div>
+        </section>
+      ) : (
       <section className={`wb-code ${readonlyQuery ? 'readonly' : ''}`} aria-label="Query">
         <div className="wb-editor" style={{ minHeight: 0 }}>
           {readonlyQuery ? (
@@ -395,6 +406,7 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
           </div>
         </div>
       </section>
+      )}
 
       {stuckOpen && <StuckModal challenge={c} onClose={() => setStuckOpen(false)} />}
     </div>
@@ -402,7 +414,7 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
 }
 
 function typeLabel(c: Challenge) {
-  return { write: '✍️ Write it', fix: '🔧 Fix it', read: '👓 Read it', predict: '🔮 Predict it' }[c.type];
+  return { write: '✍️ Write it', fix: '🔧 Fix it', read: '👓 Read it', predict: '🔮 Predict it', present: '🗣️ Present it', stakeholder: '🤝 Stakeholder' }[c.type];
 }
 
 function ResultPanel({ result, error, check, busy }: { result: QueryResult | null; error: string | null; check: CheckResult | null; busy: boolean }) {

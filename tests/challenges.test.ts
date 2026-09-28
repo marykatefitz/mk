@@ -4,6 +4,7 @@ import { NPCS } from '../src/core/characters';
 import { compareResults } from '../src/departments/sql/checker';
 import { CHALLENGES, CHALLENGE_BY_ID, WORLDS } from '../src/departments/sql';
 import { predictOptions } from '../src/departments/sql/predict';
+import { computeFacts, fillCard } from '../src/departments/sql/present';
 import { buildSteps } from '../src/departments/sql/xray';
 import type { SqlEngine } from '../src/engines/types';
 import { loadedEngine } from './helpers';
@@ -65,6 +66,22 @@ describe.each(CHALLENGES.map((c) => [c.id, c] as const))('challenge %s', (id, c)
       expect(c.choices.length).toBe(c.explanations.length);
       expect(c.answer).toBeGreaterThanOrEqual(0);
       expect(c.answer).toBeLessThan(c.choices.length);
+    });
+  }
+  if (c.type === 'present' || c.type === 'stakeholder') {
+    it('facts compute and every card renders with numbers', async () => {
+      const facts = await computeFacts(e, c.present);
+      for (const [k, v] of Object.entries(facts)) expect(typeof v === 'number' && Number.isFinite(v), `${id}.${k}`).toBe(true);
+      for (const card of c.present.cards) expect(fillCard(card.text, facts)).not.toMatch(/\{\w+/);
+      for (const role of ['answer', 'sowhat', 'detail']) expect(c.present.cards.filter((x) => x.role === role).length, role).toBe(1);
+    });
+  }
+  if (c.type === 'stakeholder') {
+    it('investigation solution runs and clarify has enough good questions', async () => {
+      const r = await e.query(c.investigate.solution);
+      expect(r.rows.length).toBeGreaterThan(0);
+      expect(c.clarify.filter((q) => q.good).length).toBeGreaterThanOrEqual(2);
+      if (c.flag) expect(c.flag.options.filter((o) => o.correct).length).toBe(1);
     });
   }
   if (c.type === 'predict') {

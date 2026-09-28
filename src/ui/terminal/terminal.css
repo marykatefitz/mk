@@ -326,3 +326,27 @@
     grid-template-columns: 1fr;
   }
 }
+
+.present-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 3px dashed var(--line);
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: var(--panel);
+  min-height: 58px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.present-slot.filled {
+  border-style: solid;
+  background: var(--warn-bg);
+}
+.wb-code.present {
+  grid-template-rows: 1fr;
+}
+.wb[data-tab='code'] .wb-code.present .wb-output {
+  display: flex;
+}

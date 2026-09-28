@@ -1,6 +1,6 @@
 import type { NpcId } from '../../core/characters';
 
-export type ChallengeType = 'write' | 'read' | 'fix' | 'predict';
+export type ChallengeType = 'write' | 'read' | 'fix' | 'predict' | 'present' | 'stakeholder';
 
 export interface SnowflakeNote {
   title: string;
@@ -63,7 +63,45 @@ export interface PredictChallenge extends BaseChallenge {
   explanation: string;
 }
 
-export type Challenge = WriteChallenge | ReadChallenge | PredictChallenge;
+export interface PresentCard {
+  id: string;
+  /** may contain {fact} or {fact:$} or {fact:%} placeholders */
+  text: string;
+  role: 'answer' | 'sowhat' | 'detail' | 'distractor';
+  /** feedback when this card is placed wrongly (or is a distractor) */
+  note: string;
+}
+
+export interface PresentStep {
+  /** scalar SQL queries whose values fill card placeholders */
+  facts: Record<string, string>;
+  cards: PresentCard[];
+}
+
+/** Build a 3-sentence answer: Answer → So-what → Detail. */
+export interface PresentChallenge extends BaseChallenge {
+  type: 'present';
+  present: PresentStep;
+}
+
+/** A vague request: clarify → investigate → (flag bad data) → present. */
+export interface StakeholderChallenge extends BaseChallenge {
+  type: 'stakeholder';
+  vague: string;
+  clarify: { text: string; good: boolean; reply: string }[];
+  investigate: {
+    question: string;
+    starter?: string;
+    solution: string;
+    orderMatters?: boolean;
+    expectedColumns?: string[];
+    hints: [string, string, string];
+  };
+  flag?: { prompt: string; options: { text: string; correct: boolean; reply: string }[] };
+  present: PresentStep;
+}
+
+export type Challenge = WriteChallenge | ReadChallenge | PredictChallenge | PresentChallenge | StakeholderChallenge;
 
 export interface LessonCard {
   title: string;
@@ -97,4 +135,4 @@ export interface World {
   boss: BossDef;
 }
 
-export const XP_BY_TYPE: Record<ChallengeType, number> = { write: 50, fix: 50, read: 40, predict: 30 };
+export const XP_BY_TYPE: Record<ChallengeType, number> = { write: 50, fix: 50, read: 40, predict: 30, present: 40, stakeholder: 90 };
