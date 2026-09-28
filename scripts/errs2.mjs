@@ -1,0 +1,10 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+page.on('pageerror', (e) => console.log('[pageerror]', e.message, e.stack?.split('\n').slice(0,5).join(' | ')));
+page.on('console', (m) => m.type() !== 'debug' && console.log(`[${m.type()}]`, m.text().slice(0, 400)));
+await page.goto('http://localhost:5173/?slot=2&skipintro');
+await page.waitForTimeout(5000);
+console.log(await page.evaluate(() => { const c = document.querySelector('canvas'); return c ? [c.width, c.height, c.style.cssText] : 'no canvas'; }));
+await page.screenshot({ path: '/tmp/claude-0/shots/g.png' });
+await browser.close();

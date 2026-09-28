@@ -8,7 +8,8 @@ export interface Settings {
   motion: 'system' | 'reduced' | 'full';
   textSpeed: 'slow' | 'normal' | 'fast' | 'instant';
   relaxedTimers: boolean;
-  readableDialogue: boolean;
+  /** chunky pixel font for dialogue text (default: clean readable font) */
+  pixelDialogue: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -19,7 +20,7 @@ const DEFAULTS: Settings = {
   motion: 'system',
   textSpeed: 'normal',
   relaxedTimers: false,
-  readableDialogue: false,
+  pixelDialogue: false,
 };
 
 function load(): Settings {
