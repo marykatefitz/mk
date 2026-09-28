@@ -161,7 +161,8 @@ export function Workbench({ engine, challenge: c, mode, onAttempt, onSolved, onH
     setError(out.error);
     setCheck(out.check);
     setTab('result');
-    setMtab('output');
+    // on phones the solved panel (rewards, Next) lives on the quest tab
+    setMtab(out.check.ok ? 'quest' : 'output');
     graded(out.check.ok);
     if (out.check.ok) markSolved(sql);
   };
