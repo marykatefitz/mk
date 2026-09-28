@@ -1,0 +1,14 @@
+import { generateDataset } from '../src/data/generator';
+const t0 = performance.now();
+const ds = generateDataset();
+console.log('ms', Math.round(performance.now() - t0));
+for (const [k, v] of Object.entries(ds.tables)) console.log(k.padEnd(22), v.length);
+const units = ds.tables.units;
+const by = (rows: any[], f: (r: any) => string) => { const m: Record<string, number> = {}; for (const r of rows) m[f(r)] = (m[f(r)] ?? 0) + 1; return m; };
+console.log(by(units, (u) => u.status));
+console.log(by(units, (u) => u.condition));
+console.log(by(ds.tables.deals, (d) => d.deal_status));
+console.log(by(ds.tables.leads, (l) => l.status));
+console.log(by(ds.tables.work_orders, (w) => w.bill_type));
+console.log(by(ds.tables.employees, (e) => e.termination_date ? 'termed' : 'active'));
+console.log('json bytes', JSON.stringify(ds.tables).length);
